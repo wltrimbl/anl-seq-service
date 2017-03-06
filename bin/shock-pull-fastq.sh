@@ -14,63 +14,6 @@ SHOCK_SERVER="http://shock.metagenomics.anl.gov"
 TMP_FILE="/var/tmp/$$.shock_read_tmp_file.$$"
 
 
-# ##############################################
-# ##############################################
-# ##############################################
-function secure_shock_read {
-	local JSON=$1
-	local FILENAME=$2
- 	
-	# need to check for presence of parameters 
-	# if there is no  JSON or FILENAME or the file is not readable
-  if [  [ "${JSON}_x" == "_x" ]  ]
-		then
-			echo "$0 function secure_shock_read:: missing JSON parameters"
-			exit 1		
-	fi
-	
-	if [ [ "${FILENAME}_x" == "_x" ]  ]   # we might want to test if we can create the file .. -o  [ -w "${FILENAME}" ] ]
-	then
-		echo "$0 function secure_shock_read:: missing filename"
-		exit 1
-	fi
-	
-# now download the file
-	res=`curl -H ${AUTH} GET ${SHOCK_SERVER}/node${file}/?download > ${TARGET_PATH}`
-
-# check if we get an error code
-	if [[ $res != 0 ]]
-		then
-			echo "download failed ($filename)"
-			exit 1
-	fi
-
-# get the MD5 to ensure we got the correct file
-	JSON=`curl -H ${AUTH} GET ${SHOCK_SERVER}/node/${file} `
-	# if there is no return JSON and or we see an error status we report and die
-  if [  "${JSON}" == ""  ] 
-		then
-			echo "can't get feedback for upload (${FILENAME}, ${ERROR_STATUS})"
-			exit 1		
-	fi
-	
-	# grab error status from JSON return	
-	SHOCK_MD5=`echo ${JSON} | jq -r '{ md5: .data[].file.checksum.md5 }' `
-			
-	# if there is no return JSON and or we see an error status we report and die
-  if [  ${SHOCK_MD5} == "" ]
-		then
-			echo "can't get an MD5 from SHOCK for (${i})"
-			exit 1		
-	fi
-	
-	# return the remote MD5 fingerprint
-	echo ${SHOCK_MD5}
-}
-
-
-
-
 # make sure all files are deleted if we exit prematurely or die
 function clean_up {
 
@@ -79,6 +22,12 @@ function clean_up {
 	exit
 }
 trap clean_up SIGHUP SIGINT SIGTERM
+
+# ##############################
+# ##############################
+# include a library of basic functions for SHOCK interaction
+INSTALL_DIR=`dirname $0`
+source ${INSTALL_DIR}/SHOCK_functions.sh
 
 rm -f ${TMP_TAR_FILE}
 
